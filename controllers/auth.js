@@ -72,3 +72,103 @@ const sendTokenResponse = (user, statusCode, res) => {
 
   res.status(statusCode).cookie('token', token, options).json({ success: true, token });
 };
+
+// @desc    Update user details
+// @route   PUT /api/v1/auth/updatedetails
+// @access  Private
+exports.updateDetails = async (req, res, next) => {
+    try {
+        const fieldsToUpdate = {
+            name: req.body.name,
+            email: req.body.email,
+            tel: req.body.tel
+        };
+
+        const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+            new: true,
+            runValidators: true
+        });
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
+    } catch (err) {
+        res.status(400).json({ success: false, message: err.message });
+    }
+};
+
+// @desc    Update password
+// @route   PUT /api/v1/auth/updatepassword
+// @access  Private
+exports.updatePassword = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user.id).select('+password');
+
+        if (!req.body.currentPassword || !req.body.newPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Please provide current and new password' 
+            });
+        }
+
+        const isMatch = await user.matchPassword(req.body.currentPassword);
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Password incorrect' 
+            });
+        }
+
+        user.password = req.body.newPassword;
+        await user.save();
+
+        sendTokenResponse(user, 200, res);
+
+    } catch (err) {
+        console.log(err.stack);
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @desc    Get all users (Admin only)
+// @route   GET /api/v1/auth/users
+// @access  Private/Admin
+exports.getUsers = async (req, res, next) => {
+    try {
+        const users = await User.find();
+        
+        res.status(200).json({
+            success: true,
+            count: users.length,
+            data: users
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+
+// @desc    Delete user (Admin only)
+// @route   DELETE /api/v1/auth/users/:id
+// @access  Private/Admin
+exports.deleteUser = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: `No user found with the id of ${req.params.id}`
+            });
+        }
+
+        await user.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            data: {}
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};

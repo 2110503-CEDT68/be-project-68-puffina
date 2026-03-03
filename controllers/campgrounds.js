@@ -20,6 +20,11 @@ exports.getCampgrounds = async (req, res, next) => {
     // Find campgrounds and populate bookings
     let query = Campground.find(JSON.parse(queryStr)).populate('bookings');
 
+    // Find by campground name
+    if (req.query.name) {
+        query = query.find({ name: { $regex: req.query.name, $options: 'i' } });
+    }
+
     // Select fields
     if (req.query.select) {
       const fields = req.query.select.split(',').join(' ');

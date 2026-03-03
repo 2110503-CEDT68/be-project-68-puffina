@@ -36,6 +36,7 @@ exports.getBookings = async (req, res, next) => {
   }
 
   try {
+    query = query.sort('checkInDate');
     const bookings = await query;
     res.status(200).json({ success: true, count: bookings.length, data: bookings });
   } catch (error) {
@@ -96,6 +97,23 @@ exports.addBooking = async (req, res, next) => {
     // Check total nights limit for normal users (max 3 nights across all bookings)
     if (req.user.role !== 'admin') {
       const existingBookings = await Booking.find({ user: req.user.id });
+
+      const hasOverlap = existingBookings.some(b => {
+          const isSameCampground = b.campground.toString() === req.params.campgroundId;
+          
+          const isOverlapping = new Date(b.checkInDate) < new Date(checkOutDate) && 
+                                new Date(b.checkOutDate) > new Date(checkInDate);
+          
+          return isSameCampground && isOverlapping;
+      });
+
+      if (hasOverlap) {
+          return res.status(400).json({
+              success: false,
+              message: 'You already have an overlapping booking at this campground.'
+          });
+      }
+
       const nightsAlreadyBooked = existingBookings.reduce((sum, b) => sum + calcNights(b.checkInDate, b.checkOutDate), 0);
 
       if (nightsAlreadyBooked + nightsRequested > 3) {

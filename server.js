@@ -7,6 +7,9 @@ const express      = require('express');
 const dotenv       = require('dotenv');
 const cookieParser = require('cookie-parser');
 const connectDB    = require('./config/db');
+const mongoSanitize = require('@exortek/express-mongo-sanitize');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 // Load env vars
 dotenv.config({ path: './config/config.env' });
@@ -24,6 +27,13 @@ const app = express();
 app.set('query parser', 'extended');
 app.use(cookieParser());
 app.use(express.json());
+app.use(mongoSanitize());
+app.use(helmet());
+const limiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 นาที
+    max: 100
+});
+app.use(limiter);
 
 // Mount routers
 app.use('/api/v1/campgrounds', campgrounds);
